@@ -1,0 +1,38 @@
+# The example graph from the README. Lints clean.
+routes:
+  - id: chat
+    alias: default-chat
+    priority: 10
+    capabilities: [chat, tools]
+    context_limit: 128000
+    entry: primary
+    nodes:
+      - id: primary
+        provider: openai
+        model: gpt-4o
+        terminal: true
+        capabilities: [chat, tools]
+        context_limit: 128000
+      - id: backup
+        provider: anthropic
+        model: claude-sonnet-4
+        terminal: true
+        capabilities: [chat, tools]
+        context_limit: 200000
+    fallbacks:
+      - from: primary
+        to: backup
+        on: timeout
+
+  - id: embed
+    priority: 20
+    capabilities: [embeddings]
+    nodes:
+      - id: only
+        provider: openai
+        model: text-embedding-3-large
+        terminal: true
+        capabilities: [embeddings]
+
+aliases:
+  fast: chat.backup

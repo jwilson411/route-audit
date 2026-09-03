@@ -1,0 +1,37 @@
+# One of everything: a cycle and an orphan in 'chat', a route with no
+# terminal model, a shared priority, and an alias pointing at nothing.
+routes:
+  - id: chat
+    priority: 10
+    entry: primary
+    nodes:
+      - id: primary
+        provider: openai
+        model: gpt-4o
+        terminal: true
+      - id: backup
+        provider: anthropic
+        model: claude-sonnet-4
+        terminal: true
+      - id: orphan
+        provider: mistral
+        model: mistral-large
+        terminal: true
+    fallbacks:
+      - from: primary
+        to: backup
+        on: timeout
+      - from: backup
+        to: primary
+        on: error
+
+  - id: tools
+    priority: 10
+    nodes:
+      - id: cheap
+        provider: openai
+        model: gpt-4o-mini
+        terminal: false
+
+aliases:
+  fast: gone

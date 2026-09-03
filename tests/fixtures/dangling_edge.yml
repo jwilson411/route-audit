@@ -1,0 +1,18 @@
+# A fallback edge naming a node that does not exist. The edge is
+# dropped, which is why 'backup' also comes back unreachable.
+routes:
+  - id: chat
+    priority: 10
+    nodes:
+      - id: primary
+        provider: openai
+        model: gpt-4o
+        terminal: true
+      - id: backup
+        provider: anthropic
+        model: claude-sonnet-4
+        terminal: true
+    fallbacks:
+      - from: primary
+        to: retired-node
+        on: timeout

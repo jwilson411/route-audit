@@ -1,0 +1,51 @@
+# A clean routing graph. Exercises every documented feature: route and
+# node aliases, a top-level alias block, capabilities, context limits,
+# priorities, and fallback edges.
+routes:
+  - id: chat
+    alias: default-chat
+    priority: 10
+    capabilities: [chat, tools]
+    context_limit: 128000
+    entry: primary
+    nodes:
+      - id: primary
+        provider: openai
+        model: gpt-4o
+        terminal: true
+        capabilities: [chat, tools]
+        context_limit: 128000
+      - id: backup
+        alias: chat-backup
+        provider: anthropic
+        model: claude-sonnet-4
+        terminal: true
+        capabilities: [chat, tools]
+        context_limit: 200000
+      - id: local
+        provider: ollama
+        model: llama3.1
+        terminal: true
+        capabilities: [chat]
+        context_limit: 32000
+    fallbacks:
+      - from: primary
+        to: backup
+        on: timeout
+      - from: chat-backup
+        to: local
+        on: rate_limit
+
+  - id: embed
+    priority: 20
+    capabilities: [embeddings]
+    nodes:
+      - id: only
+        provider: openai
+        model: text-embedding-3-large
+        terminal: true
+        capabilities: [embeddings]
+
+aliases:
+  fast: chat.local
+  primary-chat: default-chat
