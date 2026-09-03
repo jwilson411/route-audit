@@ -1,0 +1,17 @@
+# Both routes claim priority 10, so their relative order is undefined.
+routes:
+  - id: chat
+    priority: 10
+    nodes:
+      - id: primary
+        provider: openai
+        model: gpt-4o
+        terminal: true
+
+  - id: tools
+    priority: 10
+    nodes:
+      - id: primary
+        provider: anthropic
+        model: claude-sonnet-4
+        terminal: true

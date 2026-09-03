@@ -1,0 +1,21 @@
+# The graph itself is fine; the top-level alias points at a node that
+# was renamed away.
+routes:
+  - id: chat
+    priority: 10
+    nodes:
+      - id: primary
+        provider: openai
+        model: gpt-4o
+        terminal: true
+      - id: backup
+        provider: anthropic
+        model: claude-sonnet-4
+        terminal: true
+    fallbacks:
+      - from: primary
+        to: backup
+        on: timeout
+
+aliases:
+  fast: chat.does-not-exist

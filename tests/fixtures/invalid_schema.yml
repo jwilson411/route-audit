@@ -1,0 +1,7 @@
+# 'priority' is not an integer and the node has no 'model'.
+routes:
+  - id: chat
+    priority: high
+    nodes:
+      - id: primary
+        provider: openai

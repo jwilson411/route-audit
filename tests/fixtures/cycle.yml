@@ -1,0 +1,27 @@
+# primary -> backup -> spare -> primary. No fallback chain terminates.
+routes:
+  - id: chat
+    priority: 10
+    nodes:
+      - id: primary
+        provider: openai
+        model: gpt-4o
+        terminal: true
+      - id: backup
+        provider: anthropic
+        model: claude-sonnet-4
+        terminal: true
+      - id: spare
+        provider: mistral
+        model: mistral-large
+        terminal: true
+    fallbacks:
+      - from: primary
+        to: backup
+        on: timeout
+      - from: backup
+        to: spare
+        on: error
+      - from: spare
+        to: primary
+        on: error

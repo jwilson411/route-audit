@@ -1,0 +1,17 @@
+# Every node is explicitly non-terminal, so nothing can answer.
+routes:
+  - id: chat
+    priority: 10
+    nodes:
+      - id: primary
+        provider: openai
+        model: gpt-4o
+        terminal: false
+      - id: backup
+        provider: anthropic
+        model: claude-sonnet-4
+        terminal: false
+    fallbacks:
+      - from: primary
+        to: backup
+        on: timeout

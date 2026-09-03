@@ -1,0 +1,5 @@
+routes:
+  - id: chat
+   nodes:
+      - id: primary
+    provider: openai
