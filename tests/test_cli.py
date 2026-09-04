@@ -167,3 +167,147 @@ def test_audit_with_an_unreadable_policy_exits_two(capsys, tmp_path) -> None:
     )
     assert code == 2
     assert "cannot read file" in out
+
+
+# --- report -----------------------------------------------------------------
+
+
+def test_report_defaults_to_markdown(capsys) -> None:
+    code, out, _ = run(
+        capsys,
+        ["report", example("routes.yml"), "--policy", example("policy-clean.yml")],
+    )
+    assert code == 0
+    assert out.startswith("# Coverage matrix\n")
+    assert "## Untested edges" in out
+    assert out.endswith("\n")
+
+
+def test_report_of_a_violated_policy_exits_one(capsys) -> None:
+    code, out, _ = run(
+        capsys,
+        ["report", example("audit-routes.yml"), "--policy", example("policy.yml")],
+    )
+    assert code == 1
+    assert "| tools | two-down |" in out
+
+
+def test_report_json_flag_matches_format_json(capsys) -> None:
+    argv = ["report", example("routes.yml"), "--policy", example("policy-clean.yml")]
+    _, flag_out, _ = run(capsys, [*argv, "--json"])
+    _, format_out, _ = run(capsys, [*argv, "--format", "json"])
+    assert flag_out == format_out
+    payload = json.loads(flag_out)
+    assert payload["exit_code"] == 0
+    assert payload["routes_without_selection"] == ["embed"]
+    assert [row["class"] for row in payload["matrix"]] == ["tools"]
+
+
+def test_report_without_a_policy_is_a_usage_error() -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        main(["report", example("routes.yml")])
+    assert excinfo.value.code == 2
+
+
+def test_report_with_an_unreadable_policy_exits_two(capsys, tmp_path) -> None:
+    code, out, _ = run(
+        capsys,
+        ["report", example("routes.yml"), "--policy", str(tmp_path / "nope.yml")],
+    )
+    assert code == 2
+    assert "cannot read file" in out
+
+
+def test_report_of_an_unparseable_graph_exits_two(capsys, fixture_path) -> None:
+    code, out, _ = run(
+        capsys,
+        [
+            "report",
+            str(fixture_path("parse_error.yml")),
+            "--policy",
+            example("policy-clean.yml"),
+        ],
+    )
+    assert code == 2
+    assert out.startswith("parse_error ")
+
+
+# --- sarif ------------------------------------------------------------------
+
+
+def test_lint_sarif_exits_like_lint(capsys, fixture_path) -> None:
+    code, out, _ = run(
+        capsys, ["lint", str(fixture_path("cycle.yml")), "--format", "sarif"]
+    )
+    assert code == 1
+    payload = json.loads(out)
+    assert payload["version"] == "2.1.0"
+    assert [item["ruleId"] for item in payload["runs"][0]["results"]] == ["cycle"]
+
+
+def test_lint_sarif_of_a_clean_graph_exits_zero(capsys, fixture_path) -> None:
+    code, out, _ = run(
+        capsys, ["lint", str(fixture_path("valid.yml")), "--format", "sarif"]
+    )
+    assert code == 0
+    assert json.loads(out)["runs"][0]["results"] == []
+
+
+def test_lint_sarif_reports_a_fatal_document(capsys, fixture_path) -> None:
+    code, out, _ = run(
+        capsys, ["lint", str(fixture_path("parse_error.yml")), "--format", "sarif"]
+    )
+    assert code == 2
+    assert [item["ruleId"] for item in json.loads(out)["runs"][0]["results"]] == [
+        "parse_error"
+    ]
+
+
+def test_audit_sarif_exits_like_audit(capsys) -> None:
+    code, out, _ = run(
+        capsys,
+        [
+            "audit",
+            example("audit-routes.yml"),
+            "--policy",
+            example("policy.yml"),
+            "--format",
+            "sarif",
+        ],
+    )
+    assert code == 1
+    codes = {item["ruleId"] for item in json.loads(out)["runs"][0]["results"]}
+    assert "provider_denied" in codes
+
+
+def test_audit_sarif_of_a_satisfied_policy_exits_zero(capsys) -> None:
+    code, out, _ = run(
+        capsys,
+        [
+            "audit",
+            example("routes.yml"),
+            "--policy",
+            example("policy-clean.yml"),
+            "--format",
+            "sarif",
+        ],
+    )
+    assert code == 0
+    assert json.loads(out)["runs"][0]["results"] == []
+
+
+def test_json_flag_still_wins_over_format(capsys, fixture_path) -> None:
+    path = str(fixture_path("cycle.yml"))
+    _, out, _ = run(capsys, ["lint", path, "--format", "sarif", "--json"])
+    assert json.loads(out)["file"] == path
+
+
+def test_report_help_documents_the_matrix_and_exit_codes(capsys) -> None:
+    with pytest.raises(SystemExit) as excinfo:
+        main(["report", "--help"])
+    assert excinfo.value.code == 0
+    out = capsys.readouterr().out
+    assert "--policy" in out
+    assert "--format" in out
+    assert "exit codes:" in out
+    assert "does not send or proxy prompts" in out

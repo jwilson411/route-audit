@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "route-audit",
+          "version": "0.1.0",
+          "informationUri": "https://github.com/jwilson411/route-audit",
+          "rules": [
+            {
+              "id": "dangling_alias",
+              "name": "dangling_alias"
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "dangling_alias",
+          "level": "error",
+          "message": {
+            "text": "alias 'fast' points at 'chat.does-not-exist', which is not a known route or node"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/fixtures/dangling_alias.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "fast",
+                  "fullyQualifiedName": "aliases.fast",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

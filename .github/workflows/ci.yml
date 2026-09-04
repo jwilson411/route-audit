@@ -19,3 +19,45 @@ jobs:
           pip install -e ".[dev]"
       - name: Test
         run: python -m pytest -q
+
+  # The reusable action, run against the configurations this repository
+  # ships as examples. Everything here is offline after checkout.
+  dogfood-action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/route-audit
+        with:
+          routes: examples/routes.yml
+          policy: examples/policy-clean.yml
+
+  # Good configurations pass, known-bad ones fail. A job that is supposed
+  # to fail is awkward in Actions, so the exit code is asserted instead.
+  dogfood-cli:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+      - name: Lint the good graph
+        run: route-audit lint examples/routes.yml
+      - name: Audit the satisfied policy
+        run: route-audit audit examples/routes.yml --policy examples/policy-clean.yml
+      - name: Report the satisfied policy
+        run: route-audit report examples/routes.yml --policy examples/policy-clean.yml
+      - name: Lint a known-bad graph, expecting exit 1
+        run: |
+          route-audit lint tests/fixtures/cycle.yml && code=0 || code=$?
+          test "$code" -eq 1 || { echo "expected exit 1, got $code"; exit 1; }
+      - name: Audit a violated policy, expecting exit 1
+        run: |
+          route-audit audit examples/audit-routes.yml \
+            --policy examples/policy.yml && code=0 || code=$?
+          test "$code" -eq 1 || { echo "expected exit 1, got $code"; exit 1; }
+      - name: Emit SARIF for the known-bad graph
+        run: route-audit lint tests/fixtures/cycle.yml --format sarif || true

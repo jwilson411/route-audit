@@ -1,0 +1,184 @@
+{
+  "graph": "examples/audit-routes.yml",
+  "policy": "examples/policy.yml",
+  "ok": false,
+  "exit_code": 1,
+  "matrix": [
+    {
+      "class": "eu-chat",
+      "scenario": "healthy",
+      "route": "chat",
+      "ok": true,
+      "selected": "primary",
+      "failure": null,
+      "hops": 0,
+      "violations": [],
+      "attempted": []
+    },
+    {
+      "class": "eu-chat",
+      "scenario": "primary-down",
+      "route": "chat",
+      "ok": true,
+      "selected": "backup",
+      "failure": null,
+      "hops": 1,
+      "violations": [],
+      "attempted": [
+        "primary"
+      ]
+    },
+    {
+      "class": "eu-chat",
+      "scenario": "two-down",
+      "route": "chat",
+      "ok": false,
+      "selected": "local",
+      "failure": null,
+      "hops": 2,
+      "violations": [
+        "capability_downgrade",
+        "context_downgrade",
+        "max_hops_exceeded",
+        "provider_denied",
+        "region_denied"
+      ],
+      "attempted": [
+        "primary",
+        "backup"
+      ]
+    },
+    {
+      "class": "hops",
+      "scenario": "healthy",
+      "route": "chat",
+      "ok": true,
+      "selected": "primary",
+      "failure": null,
+      "hops": 0,
+      "violations": [],
+      "attempted": []
+    },
+    {
+      "class": "hops",
+      "scenario": "primary-down",
+      "route": "chat",
+      "ok": true,
+      "selected": "backup",
+      "failure": null,
+      "hops": 1,
+      "violations": [],
+      "attempted": [
+        "primary"
+      ]
+    },
+    {
+      "class": "hops",
+      "scenario": "two-down",
+      "route": "chat",
+      "ok": false,
+      "selected": "local",
+      "failure": null,
+      "hops": 2,
+      "violations": [
+        "capability_downgrade",
+        "context_downgrade",
+        "max_hops_exceeded",
+        "provider_denied",
+        "region_denied"
+      ],
+      "attempted": [
+        "primary",
+        "backup"
+      ]
+    },
+    {
+      "class": "structured",
+      "scenario": "healthy",
+      "route": "chat",
+      "ok": true,
+      "selected": "primary",
+      "failure": null,
+      "hops": 0,
+      "violations": [],
+      "attempted": []
+    },
+    {
+      "class": "structured",
+      "scenario": "primary-down",
+      "route": "chat",
+      "ok": true,
+      "selected": "backup",
+      "failure": null,
+      "hops": 1,
+      "violations": [],
+      "attempted": [
+        "primary"
+      ]
+    },
+    {
+      "class": "structured",
+      "scenario": "two-down",
+      "route": "chat",
+      "ok": false,
+      "selected": null,
+      "failure": "exhaustion",
+      "hops": 3,
+      "violations": [
+        "max_hops_exceeded"
+      ],
+      "attempted": [
+        "primary",
+        "backup",
+        "local"
+      ]
+    },
+    {
+      "class": "tools",
+      "scenario": "healthy",
+      "route": "chat",
+      "ok": true,
+      "selected": "primary",
+      "failure": null,
+      "hops": 0,
+      "violations": [],
+      "attempted": []
+    },
+    {
+      "class": "tools",
+      "scenario": "primary-down",
+      "route": "chat",
+      "ok": true,
+      "selected": "backup",
+      "failure": null,
+      "hops": 1,
+      "violations": [],
+      "attempted": [
+        "primary"
+      ]
+    },
+    {
+      "class": "tools",
+      "scenario": "two-down",
+      "route": "chat",
+      "ok": false,
+      "selected": "local",
+      "failure": null,
+      "hops": 2,
+      "violations": [
+        "capability_downgrade",
+        "context_downgrade",
+        "max_hops_exceeded",
+        "provider_denied",
+        "region_denied"
+      ],
+      "attempted": [
+        "primary",
+        "backup"
+      ]
+    }
+  ],
+  "untested_edges": [],
+  "untested_nodes": [],
+  "routes_without_selection": []
+}
