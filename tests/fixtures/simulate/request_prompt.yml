@@ -1,0 +1,3 @@
+# Rejected: a request fixture describes shape, not payload.
+route: chat
+prompt: "summarise this contract"

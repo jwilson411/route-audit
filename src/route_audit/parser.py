@@ -9,10 +9,15 @@ Schema errors are collected rather than raised: a bad document reports
 every problem it has in one pass. If any are found, no graph is built,
 because the checks downstream would otherwise report noise derived from
 half-parsed input.
+
+The small field validators at the bottom of the module are public: the
+simulator's request, scenario, and batch documents are validated the
+same way, with the same messages.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import yaml
@@ -37,6 +42,35 @@ def parse_text(text: str, *, path: str = "<document>") -> ParseResult:
     return parse_document(data, path=path)
 
 
+def parse_path(path: str | Path) -> ParseResult:
+    """Parse one YAML file. An unreadable file is a `parse_error`."""
+    data, diagnostics = load_yaml_path(path)
+    if diagnostics:
+        return None, diagnostics
+    return parse_document(data, path=str(path))
+
+
+def load_yaml_path(path: str | Path) -> tuple[Any, list[Diagnostic]]:
+    """Read and load one YAML file. Returns `(None, diagnostics)` on failure.
+
+    This is the only I/O route-audit performs. It reads a local file and
+    never opens a socket.
+    """
+    path = Path(path)
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        message = f"cannot read file: {exc.strerror}"
+    except UnicodeDecodeError:
+        message = "cannot read file: not valid UTF-8"
+    else:
+        try:
+            return yaml.safe_load(text), []
+        except yaml.YAMLError as exc:
+            message = _yaml_message(exc)
+    return None, [Diagnostic(CODE_PARSE_ERROR, str(path), message)]
+
+
 def parse_document(data: Any, *, path: str = "<document>") -> ParseResult:
     """Validate an already-loaded YAML document and build the graph."""
     diagnostics: list[Diagnostic] = []
@@ -49,7 +83,7 @@ def parse_document(data: Any, *, path: str = "<document>") -> ParseResult:
             Diagnostic(
                 CODE_INVALID_SCHEMA,
                 path,
-                f"document must be a mapping, got {_type_name(data)}",
+                f"document must be a mapping, got {type_name(data)}",
             )
         )
         return None, diagnostics
@@ -65,7 +99,7 @@ def parse_document(data: Any, *, path: str = "<document>") -> ParseResult:
             Diagnostic(
                 CODE_INVALID_SCHEMA,
                 "routes",
-                f"'routes' must be a list, got {_type_name(raw_routes)}",
+                f"'routes' must be a list, got {type_name(raw_routes)}",
             )
         )
         return None, diagnostics
@@ -110,7 +144,7 @@ def _parse_route(
             Diagnostic(
                 CODE_INVALID_SCHEMA,
                 where,
-                f"route must be a mapping, got {_type_name(raw)}",
+                f"route must be a mapping, got {type_name(raw)}",
             )
         )
         return None
@@ -120,14 +154,14 @@ def _parse_route(
         return None
     where = f"routes.{route_id}"
 
-    priority = _optional_int(raw.get("priority"), where, "priority", diagnostics)
-    context_limit = _optional_int(
+    priority = optional_int(raw.get("priority"), where, "priority", diagnostics)
+    context_limit = optional_int(
         raw.get("context_limit"), where, "context_limit", diagnostics
     )
-    capabilities = _optional_str_list(
+    capabilities = optional_str_list(
         raw.get("capabilities"), where, "capabilities", diagnostics
     )
-    entry = _optional_str(raw.get("entry"), where, "entry", diagnostics)
+    entry = optional_str(raw.get("entry"), where, "entry", diagnostics)
 
     for name in _alias_names(raw, where, diagnostics):
         aliases.append(Alias(name=name, target=route_id, path=f"{where}.alias"))
@@ -179,7 +213,7 @@ def _parse_nodes(
                 Diagnostic(
                     CODE_INVALID_SCHEMA,
                     where,
-                    f"node must be a mapping, got {_type_name(raw)}",
+                    f"node must be a mapping, got {type_name(raw)}",
                 )
             )
             continue
@@ -196,13 +230,13 @@ def _parse_nodes(
             continue
         seen.add(node_id)
 
-        provider = _require_str(raw.get("provider"), where, "provider", diagnostics)
-        model = _require_str(raw.get("model"), where, "model", diagnostics)
-        terminal = _optional_bool(raw.get("terminal"), where, "terminal", diagnostics)
-        capabilities = _optional_str_list(
+        provider = require_str(raw.get("provider"), where, "provider", diagnostics)
+        model = require_str(raw.get("model"), where, "model", diagnostics)
+        terminal = optional_bool(raw.get("terminal"), where, "terminal", diagnostics)
+        capabilities = optional_str_list(
             raw.get("capabilities"), where, "capabilities", diagnostics
         )
-        context_limit = _optional_int(
+        context_limit = optional_int(
             raw.get("context_limit"), where, "context_limit", diagnostics
         )
         for name in _alias_names(raw, where, diagnostics):
@@ -236,7 +270,7 @@ def _parse_fallbacks(
             Diagnostic(
                 CODE_INVALID_SCHEMA,
                 f"{route_path}.fallbacks",
-                f"'fallbacks' must be a list, got {_type_name(raw_fallbacks)}",
+                f"'fallbacks' must be a list, got {type_name(raw_fallbacks)}",
             )
         )
         return ()
@@ -249,13 +283,13 @@ def _parse_fallbacks(
                 Diagnostic(
                     CODE_INVALID_SCHEMA,
                     where,
-                    f"fallback must be a mapping, got {_type_name(raw)}",
+                    f"fallback must be a mapping, got {type_name(raw)}",
                 )
             )
             continue
-        source = _require_str(raw.get("from"), where, "from", diagnostics)
-        target = _require_str(raw.get("to"), where, "to", diagnostics)
-        on = _optional_str(raw.get("on"), where, "on", diagnostics)
+        source = require_str(raw.get("from"), where, "from", diagnostics)
+        target = require_str(raw.get("to"), where, "to", diagnostics)
+        on = optional_str(raw.get("on"), where, "on", diagnostics)
         if source is None or target is None:
             continue
         edges.append(FallbackEdge(source=source, target=target, on=on, index=position))
@@ -282,7 +316,7 @@ def _parse_top_level_aliases(raw: Any, diagnostics: list[Diagnostic]) -> list[Al
                         CODE_INVALID_SCHEMA,
                         where,
                         f"alias target must be a non-empty string, got "
-                        f"{_type_name(target)}",
+                        f"{type_name(target)}",
                     )
                 )
                 continue
@@ -296,7 +330,7 @@ def _parse_top_level_aliases(raw: Any, diagnostics: list[Diagnostic]) -> list[Al
                     Diagnostic(
                         CODE_INVALID_SCHEMA,
                         where,
-                        f"alias must be a mapping, got {_type_name(item)}",
+                        f"alias must be a mapping, got {type_name(item)}",
                     )
                 )
                 continue
@@ -327,7 +361,7 @@ def _parse_top_level_aliases(raw: Any, diagnostics: list[Diagnostic]) -> list[Al
         Diagnostic(
             CODE_INVALID_SCHEMA,
             "aliases",
-            f"'aliases' must be a mapping or a list, got {_type_name(raw)}",
+            f"'aliases' must be a mapping or a list, got {type_name(raw)}",
         )
     )
     return aliases
@@ -361,12 +395,12 @@ def _alias_names(raw: dict, where: str, diagnostics: list[Diagnostic]) -> list[s
                 Diagnostic(
                     CODE_INVALID_SCHEMA,
                     where,
-                    f"'alias' must be a non-empty string, got {_type_name(single)}",
+                    f"'alias' must be a non-empty string, got {type_name(single)}",
                 )
             )
     many = raw.get("aliases")
     if many is not None:
-        values = _optional_str_list(many, where, "aliases", diagnostics)
+        values = optional_str_list(many, where, "aliases", diagnostics)
         names.extend(values)
     return names
 
@@ -386,7 +420,7 @@ def _require_id(
     return None
 
 
-def _require_str(
+def require_str(
     value: Any, where: str, key: str, diagnostics: list[Diagnostic]
 ) -> str | None:
     if isinstance(value, str) and value:
@@ -395,21 +429,21 @@ def _require_str(
         Diagnostic(
             CODE_INVALID_SCHEMA,
             where,
-            f"'{key}' must be a non-empty string, got {_type_name(value)}",
+            f"'{key}' must be a non-empty string, got {type_name(value)}",
         )
     )
     return None
 
 
-def _optional_str(
+def optional_str(
     value: Any, where: str, key: str, diagnostics: list[Diagnostic]
 ) -> str | None:
     if value is None:
         return None
-    return _require_str(value, where, key, diagnostics)
+    return require_str(value, where, key, diagnostics)
 
 
-def _optional_int(
+def optional_int(
     value: Any, where: str, key: str, diagnostics: list[Diagnostic]
 ) -> int | None:
     if value is None:
@@ -419,14 +453,14 @@ def _optional_int(
             Diagnostic(
                 CODE_INVALID_SCHEMA,
                 where,
-                f"'{key}' must be an integer, got {_type_name(value)}",
+                f"'{key}' must be an integer, got {type_name(value)}",
             )
         )
         return None
     return value
 
 
-def _optional_bool(
+def optional_bool(
     value: Any, where: str, key: str, diagnostics: list[Diagnostic]
 ) -> bool | None:
     if value is None:
@@ -436,14 +470,14 @@ def _optional_bool(
             Diagnostic(
                 CODE_INVALID_SCHEMA,
                 where,
-                f"'{key}' must be a boolean, got {_type_name(value)}",
+                f"'{key}' must be a boolean, got {type_name(value)}",
             )
         )
         return None
     return value
 
 
-def _optional_str_list(
+def optional_str_list(
     value: Any, where: str, key: str, diagnostics: list[Diagnostic]
 ) -> tuple[str, ...]:
     if value is None:
@@ -462,7 +496,7 @@ def _optional_str_list(
     return tuple(value)
 
 
-def _type_name(value: Any) -> str:
+def type_name(value: Any) -> str:
     if value is None:
         return "null"
     return {

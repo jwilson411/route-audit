@@ -1,0 +1,3 @@
+nodes:
+  primary:
+    rate_limited: true

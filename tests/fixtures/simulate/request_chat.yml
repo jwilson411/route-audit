@@ -1,0 +1,2 @@
+route: chat
+required_capabilities: [chat]

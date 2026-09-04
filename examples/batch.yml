@@ -1,0 +1,21 @@
+# The batch document from the README: one request, healthy and under outage.
+seed: 20260904
+
+requests:
+  tools:
+    route: chat
+    required_capabilities: [chat, tools]
+
+scenarios:
+  primary-down:
+    route: chat
+    nodes:
+      primary:
+        unavailable: true
+
+matrix:
+  - name: tools-healthy
+    request: tools
+  - name: tools-primary-down
+    request: tools
+    scenario: primary-down

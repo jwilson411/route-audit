@@ -1,0 +1,45 @@
+# A seeded batch: named requests, named scenarios, and the pairs to run.
+# The seed fixes run order and is echoed in the report; nothing here is random.
+seed: 20260904
+
+requests:
+  tools:
+    route: chat
+    required_capabilities: [chat, tools]
+    context_tokens: 8000
+  large:
+    route: chat
+    context_tokens: 150000
+  embed:
+    route: embed
+    required_capabilities: [embeddings]
+
+scenarios:
+  primary-down:
+    route: chat
+    nodes:
+      primary:
+        unavailable: true
+  chat-down:
+    route: chat
+    nodes:
+      primary:
+        unavailable: true
+      chat-backup:          # node alias, resolved inside the route
+        rate_limited: true
+      local:
+        over_context: true
+
+matrix:
+  - name: tools-healthy
+    request: tools
+  - name: tools-primary-down
+    request: tools
+    scenario: primary-down
+  - name: tools-chat-down
+    request: tools
+    scenario: chat-down
+  - name: large-healthy
+    request: large
+  - name: embed-healthy
+    request: embed

@@ -1,0 +1,4 @@
+# A chat request that needs tool calling. No prompt text, ever.
+route: chat
+required_capabilities: [chat, tools]
+context_tokens: 8000

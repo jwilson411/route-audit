@@ -1,0 +1,3 @@
+# Larger than the primary's context window, inside the backup's.
+route: chat
+context_tokens: 150000
