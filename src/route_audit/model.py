@@ -19,6 +19,8 @@ class Node:
     terminal: bool | None = None
     capabilities: tuple[str, ...] = ()
     context_limit: int | None = None
+    region: str | None = None
+    """A user-declared region tag. Opaque metadata, not a geolocation."""
 
     @property
     def qualified_model(self) -> str:

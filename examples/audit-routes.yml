@@ -1,0 +1,34 @@
+# The audit example graph from the README: a chat route that degrades
+# twice, each hop giving something up. Audited by examples/policy.yml.
+routes:
+  - id: chat
+    priority: 10
+    capabilities: [chat, tools, json]
+    context_limit: 128000
+    entry: primary
+    nodes:
+      - id: primary
+        provider: openai
+        model: gpt-4o
+        capabilities: [chat, tools, json]
+        context_limit: 128000
+        region: us
+      - id: backup
+        provider: anthropic
+        model: claude-sonnet-4
+        capabilities: [chat, tools, json]
+        context_limit: 200000
+        region: us
+      - id: local
+        provider: together
+        model: llama
+        capabilities: [chat, tools]
+        context_limit: 8000
+        region: apac
+    fallbacks:
+      - from: primary
+        to: backup
+        on: timeout
+      - from: backup
+        to: local
+        on: timeout

@@ -1,8 +1,17 @@
-"""Static routing-graph parser, linter, and offline route simulator.
+"""Static routing-graph parser, linter, offline route simulator, and policy auditor.
 
 route-audit validates architecture and does not send or proxy prompts.
 """
 
+from route_audit.audit import (
+    AuditCase,
+    AuditReport,
+    Violation,
+    audit_exit_code,
+    format_audit_json,
+    format_audit_text,
+    run_audit,
+)
 from route_audit.batch import (
     NO_SCENARIO,
     BatchCase,
@@ -41,6 +50,24 @@ from route_audit.linter import (
 )
 from route_audit.model import Alias, FallbackEdge, Node, Route, RouteGraph
 from route_audit.parser import load_yaml_path, parse_document, parse_path, parse_text
+from route_audit.policy import (
+    ALL_VIOLATIONS,
+    VIOLATION_CAPABILITY_DOWNGRADE,
+    VIOLATION_CAPABILITY_REQUIRED,
+    VIOLATION_CONTEXT_DOWNGRADE,
+    VIOLATION_MAX_HOPS_EXCEEDED,
+    VIOLATION_PROVIDER_DENIED,
+    VIOLATION_PROVIDER_NOT_ALLOWED,
+    VIOLATION_REGION_DENIED,
+    VIOLATION_REGION_NOT_ALLOWED,
+    NoDowngrade,
+    Policy,
+    PolicyCase,
+    check_region_vocabulary,
+    load_policy_document,
+    load_policy_path,
+    load_policy_text,
+)
 from route_audit.resolve import Resolver, Target
 from route_audit.simulate import (
     ALL_FAILURES,
@@ -78,8 +105,11 @@ __all__ = [
     "ALL_CODES",
     "ALL_FAILURES",
     "ALL_REASONS",
+    "ALL_VIOLATIONS",
     "Alias",
     "Attempt",
+    "AuditCase",
+    "AuditReport",
     "BatchCase",
     "BatchPlan",
     "BatchReport",
@@ -101,9 +131,12 @@ __all__ = [
     "FATAL_CODES",
     "FallbackEdge",
     "NO_SCENARIO",
+    "NoDowngrade",
     "Node",
     "NodeFault",
     "PROMPT_KEYS",
+    "Policy",
+    "PolicyCase",
     "REASON_CAPABILITY_MISMATCH",
     "REASON_CONTEXT_OVERFLOW",
     "REASON_PROVIDER_NOT_ALLOWED",
@@ -117,12 +150,25 @@ __all__ = [
     "Scenario",
     "SimulationResult",
     "Target",
+    "VIOLATION_CAPABILITY_DOWNGRADE",
+    "VIOLATION_CAPABILITY_REQUIRED",
+    "VIOLATION_CONTEXT_DOWNGRADE",
+    "VIOLATION_MAX_HOPS_EXCEEDED",
+    "VIOLATION_PROVIDER_DENIED",
+    "VIOLATION_PROVIDER_NOT_ALLOWED",
+    "VIOLATION_REGION_DENIED",
+    "VIOLATION_REGION_NOT_ALLOWED",
+    "Violation",
     "__version__",
+    "audit_exit_code",
     "batch_exit_code",
     "build_adjacency",
     "check_graph",
+    "check_region_vocabulary",
     "entry_node",
     "exit_code",
+    "format_audit_json",
+    "format_audit_text",
     "format_batch_json",
     "format_batch_text",
     "format_json",
@@ -134,6 +180,9 @@ __all__ = [
     "lint_text",
     "load_batch_document",
     "load_batch_path",
+    "load_policy_document",
+    "load_policy_path",
+    "load_policy_text",
     "load_request_document",
     "load_request_path",
     "load_scenario_document",
@@ -142,6 +191,7 @@ __all__ = [
     "parse_document",
     "parse_path",
     "parse_text",
+    "run_audit",
     "run_batch",
     "simulate",
     "simulation_exit_code",

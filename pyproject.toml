@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "route-audit"
 version = "0.1.0"
-description = "Static routing-graph parser, linter, and offline route simulator: cycles, dangling aliases, unreachable nodes, duplicate priorities, missing terminal models, and outage/capability simulation."
+description = "Static routing-graph parser, linter, offline route simulator, and policy auditor: cycles, dangling aliases, unreachable nodes, duplicate priorities, missing terminal models, outage/capability simulation, and policy audit of provider, region, hop, and downgrade boundaries."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
