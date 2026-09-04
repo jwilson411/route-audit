@@ -11,8 +11,8 @@ from collections.abc import Iterable
 from pathlib import Path
 
 from route_audit.checks import check_graph
-from route_audit.diagnostics import CODE_PARSE_ERROR, Diagnostic, exit_code
-from route_audit.parser import parse_document, parse_text
+from route_audit.diagnostics import Diagnostic, exit_code
+from route_audit.parser import parse_document, parse_path, parse_text
 
 
 def lint_text(text: str, *, path: str = "<document>") -> list[Diagnostic]:
@@ -32,18 +32,10 @@ def lint_document(data: object, *, path: str = "<document>") -> list[Diagnostic]
 
 def lint_path(path: str | Path) -> list[Diagnostic]:
     """Lint a file. An unreadable file is a `parse_error`, not an exception."""
-    path = Path(path)
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError as exc:
-        return [
-            Diagnostic(CODE_PARSE_ERROR, str(path), f"cannot read file: {exc.strerror}")
-        ]
-    except UnicodeDecodeError:
-        return [
-            Diagnostic(CODE_PARSE_ERROR, str(path), "cannot read file: not valid UTF-8")
-        ]
-    return lint_text(text, path=str(path))
+    graph, diagnostics = parse_path(path)
+    if graph is None:
+        return diagnostics
+    return check_graph(graph)
 
 
 def format_text(diagnostics: Iterable[Diagnostic]) -> str:

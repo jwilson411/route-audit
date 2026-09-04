@@ -1,0 +1,5 @@
+# The outage scenario from the README: the primary is down for this run.
+route: chat
+nodes:
+  primary:
+    unavailable: true

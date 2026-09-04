@@ -1,0 +1,4 @@
+route: chat
+nodes:
+  primary:
+    unavailable: true

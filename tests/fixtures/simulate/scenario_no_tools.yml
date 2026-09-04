@@ -1,0 +1,4 @@
+# The primary keeps chat but loses tool calling for this run.
+nodes:
+  primary:
+    missing_capabilities: [tools]

@@ -34,9 +34,9 @@ def check_graph(graph: RouteGraph) -> list[Diagnostic]:
     diagnostics.extend(check_duplicate_priority(graph))
 
     for route in graph.routes:
-        adjacency, edge_diagnostics = _adjacency(route, resolver)
+        adjacency, edge_diagnostics = build_adjacency(route, resolver)
         diagnostics.extend(edge_diagnostics)
-        entry, entry_diagnostics = _entry(route, resolver)
+        entry, entry_diagnostics = entry_node(route, resolver)
         diagnostics.extend(entry_diagnostics)
         diagnostics.extend(check_cycles(route, adjacency))
         diagnostics.extend(check_unreachable_nodes(route, adjacency, entry))
@@ -148,7 +148,9 @@ def is_terminal(node: Node, adjacency: Adjacency) -> bool:
     return bool(node.model) and not adjacency.get(node.id)
 
 
-def _entry(route: Route, resolver: Resolver) -> tuple[str | None, list[Diagnostic]]:
+def entry_node(
+    route: Route, resolver: Resolver
+) -> tuple[str | None, list[Diagnostic]]:
     """The entry node id, defaulting to the first declared node."""
     default = route.node_ids[0] if route.nodes else None
     if route.entry is None:
@@ -165,8 +167,14 @@ def _entry(route: Route, resolver: Resolver) -> tuple[str | None, list[Diagnosti
     return target.node_id, []
 
 
-def _adjacency(route: Route, resolver: Resolver) -> tuple[Adjacency, list[Diagnostic]]:
-    """Resolve fallback endpoints to local node ids. Bad edges are dropped."""
+def build_adjacency(
+    route: Route, resolver: Resolver
+) -> tuple[Adjacency, list[Diagnostic]]:
+    """Resolve fallback endpoints to local node ids. Bad edges are dropped.
+
+    Targets keep declaration order, which is the order the simulator
+    walks fallbacks in.
+    """
     adjacency: Adjacency = {}
     diagnostics: list[Diagnostic] = []
     for edge in route.fallbacks:

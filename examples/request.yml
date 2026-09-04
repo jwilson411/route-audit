@@ -1,0 +1,4 @@
+# The request fixture from the README. Shape only: no prompt text.
+route: chat
+required_capabilities: [chat, tools]
+context_tokens: 8000

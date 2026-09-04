@@ -1,0 +1,7 @@
+nodes:
+  primary:
+    unavailable: true
+  chat-backup:          # node alias, resolved inside the route
+    rate_limited: true
+  local:
+    over_context: true
