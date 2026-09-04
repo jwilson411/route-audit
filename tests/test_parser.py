@@ -85,6 +85,29 @@ routes:
     assert lint_text(document, path="inline") == []
 
 
+def test_a_node_region_tag_is_parsed_as_written() -> None:
+    document = """
+routes:
+  - id: chat
+    nodes:
+      - id: primary
+        provider: openai
+        model: gpt-4o
+        region: us
+        terminal: true
+      - id: backup
+        provider: anthropic
+        model: claude-sonnet-4
+        terminal: true
+"""
+    graph, diagnostics = parse_text(document, path="inline")
+    assert diagnostics == []
+    assert graph is not None
+    chat = graph.route("chat")
+    assert chat.node("primary").region == "us"
+    assert chat.node("backup").region is None  # an undeclared tag is not a tag
+
+
 def test_parse_builds_the_graph(fixture_path) -> None:
     graph, diagnostics = parse_text(
         fixture_path("valid.yml").read_text(encoding="utf-8"), path="valid.yml"

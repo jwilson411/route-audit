@@ -196,7 +196,7 @@ def simulate(
         if scenario_target is None or scenario_target.route_id != route.id:
             return SimulationResult(route.id, failure=FAILURE_ROUTE_MISMATCH)
 
-    faults, unknown = _resolve_faults(route, resolver, scenario)
+    faults, unknown = resolve_faults(route, resolver, scenario)
     if unknown:
         return SimulationResult(route.id, failure=FAILURE_UNKNOWN_SCENARIO_NODE)
 
@@ -301,10 +301,14 @@ def _reject(
     return None
 
 
-def _resolve_faults(
+def resolve_faults(
     route: Route, resolver: Resolver, scenario: Scenario
 ) -> tuple[dict[str, NodeFault], tuple[str, ...]]:
-    """Map scenario node names onto node ids in this route."""
+    """Map scenario node names onto node ids in this route.
+
+    Public because `audit` judges the selected node against the same
+    faults the walk applied, rather than re-deriving them.
+    """
     faults: dict[str, NodeFault] = {}
     unknown: list[str] = []
     for name, fault in scenario.faults:

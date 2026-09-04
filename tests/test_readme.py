@@ -4,7 +4,14 @@ from pathlib import Path
 
 import pytest
 
-from route_audit import ALL_CODES, ALL_FAILURES, ALL_REASONS, PROMPT_KEYS, lint_path
+from route_audit import (
+    ALL_CODES,
+    ALL_FAILURES,
+    ALL_REASONS,
+    ALL_VIOLATIONS,
+    PROMPT_KEYS,
+    lint_path,
+)
 from route_audit.cli import main
 
 ROOT = Path(__file__).resolve().parents[1]

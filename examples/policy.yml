@@ -1,0 +1,41 @@
+# The four stories from the README, in one policy, against
+# examples/audit-routes.yml. It is meant to fail: the cartesian product
+# of these classes and scenarios is exactly the set of crossings an
+# organization would want to hear about before an outage finds them.
+allowed_providers: [openai, anthropic]
+denied_providers: [together]
+required_capabilities: [chat]
+max_fallback_hops: 1
+
+# Region tags are user-declared metadata, not a compliance certification.
+known_region_tags: [us, eu, apac]
+allowed_regions: [us, eu]
+denied_regions: [apac]
+
+no_downgrade:
+  capabilities: true
+  context_limit: true
+
+classes:
+  tools:                          # tool-capability preservation
+    route: chat
+    required_capabilities: [chat, tools]
+  structured:                     # structured-output preservation
+    route: chat
+    required_capabilities: [chat, json]
+  eu-chat:                        # region boundary
+    route: chat
+    required_capabilities: [chat]
+  hops:                           # maximum hop
+    route: chat
+    required_capabilities: [chat]
+
+scenarios:
+  healthy: {}
+  primary-down:
+    nodes:
+      primary: {unavailable: true}
+  two-down:
+    nodes:
+      primary: {unavailable: true}
+      backup: {unavailable: true}

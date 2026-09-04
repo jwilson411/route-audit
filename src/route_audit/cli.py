@@ -1,4 +1,4 @@
-"""`route-audit lint routes.yml`, `route-audit simulate routes.yml ...`.
+"""`route-audit lint`, `route-audit simulate`, `route-audit audit`.
 
 Reads local YAML files, prints stable output, exits with a documented
 code. It never opens a socket.
@@ -10,6 +10,12 @@ import argparse
 import sys
 
 from route_audit import __version__
+from route_audit.audit import (
+    audit_exit_code,
+    format_audit_json,
+    format_audit_text,
+    run_audit,
+)
 from route_audit.batch import (
     batch_exit_code,
     format_batch_json,
@@ -20,6 +26,7 @@ from route_audit.batch import (
 from route_audit.diagnostics import Diagnostic, exit_code
 from route_audit.linter import format_json, format_text, lint_path
 from route_audit.parser import parse_path
+from route_audit.policy import check_region_vocabulary, load_policy_path
 from route_audit.simulate import (
     Scenario,
     format_simulation_json,
@@ -53,6 +60,21 @@ and scenario always produce the same path. A request fixture declares
 required capabilities, context tokens, and allowed providers - it must
 not carry prompt text. route-audit validates architecture and does not
 send or proxy prompts.
+"""
+
+AUDIT_EPILOG = """\
+exit codes:
+  0  no policy violation (a case the walk could not serve is a coverage
+     hole, not a governance failure, and does not fail the audit)
+  1  at least one policy violation
+  2  usage error, unreadable file, or a document that could not be
+     parsed or did not match the schema (parse_error, invalid_schema)
+
+The audit is a layer on top of the simulation: simulate decides what the
+graph would do, the policy decides whether that crossing was allowed.
+Region tags are user-declared metadata, not a compliance certification -
+route-audit performs no network geolocation. It validates architecture
+and does not send or proxy prompts.
 """
 
 
@@ -125,6 +147,36 @@ def build_parser() -> argparse.ArgumentParser:
         help="Shorthand for --format json",
     )
     sim.set_defaults(handler=_run_simulate, subparser=sim)
+
+    audit = subparsers.add_parser(
+        "audit",
+        help="Audit every request class against every scenario under a policy",
+        description=(
+            "Simulate every declared request class under every scenario and "
+            "report where a fallback crosses a boundary the policy forbids."
+        ),
+        epilog=AUDIT_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    audit.add_argument("path", help="Path to the routing graph YAML file")
+    audit.add_argument(
+        "--policy",
+        required=True,
+        help="Path to the policy document: providers, capabilities, hops, regions",
+    )
+    audit.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="Output format (default: text, the smallest violating path first)",
+    )
+    audit.add_argument(
+        "--json",
+        dest="json_flag",
+        action="store_true",
+        help="Shorthand for --format json",
+    )
+    audit.set_defaults(handler=_run_audit)
     return parser
 
 
@@ -183,6 +235,31 @@ def _run_simulate(args: argparse.Namespace) -> int:
     else:
         sys.stdout.write(format_simulation_text(result))
     return simulation_exit_code(result)
+
+
+def _run_audit(args: argparse.Namespace) -> int:
+    json_mode = args.json_flag or args.format == "json"
+
+    graph, diagnostics = parse_path(args.path)
+    if graph is None:
+        return _report(diagnostics, path=str(args.path), json_mode=json_mode)
+
+    policy, diagnostics = load_policy_path(args.policy)
+    if policy is None:
+        return _report(diagnostics, path=str(args.policy), json_mode=json_mode)
+
+    # Region tags on the graph are only checked against a declared
+    # vocabulary, so this is the audit's business and never the linter's.
+    diagnostics = check_region_vocabulary(graph, policy)
+    if diagnostics:
+        return _report(diagnostics, path=str(args.path), json_mode=json_mode)
+
+    report = run_audit(graph, policy)
+    if json_mode:
+        print(format_audit_json(report, graph=str(args.path), policy=str(args.policy)))
+    else:
+        sys.stdout.write(format_audit_text(report))
+    return audit_exit_code(report)
 
 
 def _report(diagnostics: list[Diagnostic], *, path: str, json_mode: bool) -> int:

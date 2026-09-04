@@ -38,7 +38,7 @@ def parse_text(text: str, *, path: str = "<document>") -> ParseResult:
     try:
         data = yaml.safe_load(text)
     except yaml.YAMLError as exc:
-        return None, [Diagnostic(CODE_PARSE_ERROR, path, _yaml_message(exc))]
+        return None, [Diagnostic(CODE_PARSE_ERROR, path, yaml_message(exc))]
     return parse_document(data, path=path)
 
 
@@ -51,23 +51,29 @@ def parse_path(path: str | Path) -> ParseResult:
 
 
 def load_yaml_path(path: str | Path) -> tuple[Any, list[Diagnostic]]:
-    """Read and load one YAML file. Returns `(None, diagnostics)` on failure.
+    """Read and load one YAML file. Returns `(None, diagnostics)` on failure."""
+    text, diagnostics = read_text_path(path)
+    if text is None:
+        return None, diagnostics
+    try:
+        return yaml.safe_load(text), []
+    except yaml.YAMLError as exc:
+        return None, [Diagnostic(CODE_PARSE_ERROR, str(path), yaml_message(exc))]
+
+
+def read_text_path(path: str | Path) -> tuple[str | None, list[Diagnostic]]:
+    """Read one local file as UTF-8. An unreadable file is a `parse_error`.
 
     This is the only I/O route-audit performs. It reads a local file and
     never opens a socket.
     """
     path = Path(path)
     try:
-        text = path.read_text(encoding="utf-8")
+        return path.read_text(encoding="utf-8"), []
     except OSError as exc:
         message = f"cannot read file: {exc.strerror}"
     except UnicodeDecodeError:
         message = "cannot read file: not valid UTF-8"
-    else:
-        try:
-            return yaml.safe_load(text), []
-        except yaml.YAMLError as exc:
-            message = _yaml_message(exc)
     return None, [Diagnostic(CODE_PARSE_ERROR, str(path), message)]
 
 
@@ -239,6 +245,7 @@ def _parse_nodes(
         context_limit = optional_int(
             raw.get("context_limit"), where, "context_limit", diagnostics
         )
+        region = optional_str(raw.get("region"), where, "region", diagnostics)
         for name in _alias_names(raw, where, diagnostics):
             aliases.append(
                 Alias(
@@ -255,6 +262,7 @@ def _parse_nodes(
                 terminal=terminal,
                 capabilities=capabilities,
                 context_limit=context_limit,
+                region=region,
             )
         )
     return tuple(nodes)
@@ -509,7 +517,7 @@ def type_name(value: Any) -> str:
     }.get(type(value), type(value).__name__)
 
 
-def _yaml_message(exc: yaml.YAMLError) -> str:
+def yaml_message(exc: yaml.YAMLError) -> str:
     """Flatten a PyYAML error to one stable line."""
     mark = getattr(exc, "problem_mark", None)
     problem = getattr(exc, "problem", None) or "invalid YAML"

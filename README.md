@@ -1,6 +1,7 @@
 # route-audit
 
-Static routing-graph parser, linter, and offline route simulator for LLM route configs.
+Static routing-graph parser, linter, offline route simulator, and policy auditor for LLM
+route configs.
 
 A multi-provider routing config is a graph: entry points, fallback edges, aliases,
 priorities. Most of the ways it goes wrong — a fallback loop, an alias pointing at a
@@ -88,6 +89,7 @@ routes:
         terminal: true           # optional bool; defaults to "has no outgoing fallback"
         capabilities: [chat, tools]
         context_limit: 128000
+        region: us               # optional user-declared region tag
     fallbacks:                   # optional directed edges between nodes in this route
       - from: primary            # required node id or alias
         to: backup               # required node id or alias
@@ -114,6 +116,10 @@ Field notes:
   finding, because the tie-break would be undefined.
 - **`terminal`** — marks a node that can end a fallback chain. When unset, a node with
   a model and no outgoing fallback edge counts as terminal.
+- **`region`** — an optional string on a node. Region tags are user-declared metadata,
+  not a compliance certification: route-audit compares the tag you wrote against the
+  vocabulary your policy declares and performs no network geolocation. Only
+  [`audit`](#audit) reads it; `lint` treats it like any other declarative field.
 
 A complete, lint-clean example lives in [`examples/routes.yml`](examples/routes.yml).
 
@@ -279,6 +285,168 @@ the same data lives at `coverage.routes`, one object per route, plus
 | `0` | A node was selected — every case, in batch mode. |
 | `1` | The walk ended in terminal failure — any case, in batch mode. |
 | `2` | Usage error, unreadable file, or a document that could not be parsed or did not match the schema. |
+
+## Audit
+
+A graph can lint clean, simulate cleanly, and still walk a request somewhere nobody
+agreed to: onto a provider no one approved, into a region tag no one expected, two hops
+further than the design allows, or onto a node that quietly dropped `tools` or `json` on
+the way. `audit` runs every declared request class against every scenario and asks the
+one question the walk never asks — was the organization willing to end up there?
+
+```bash
+route-audit audit routes.yml --policy policy.yml
+```
+
+The audit is a layer on top of the simulation: `simulate` decides what the graph would
+do, the policy decides whether that crossing was allowed. The audit judges the simulated
+path; it does not rewrite routes, reorder fallbacks, or suggest a different node. Like
+`lint` and `simulate`, it **validates architecture and does not send or proxy prompts**.
+
+### The policy document
+
+```yaml
+allowed_providers: [openai, anthropic]  # optional; empty means "any provider"
+denied_providers: [together]            # optional; denied wins over allowed
+required_capabilities: [chat]           # optional; must hold on the selected node
+max_fallback_hops: 1                    # optional non-negative integer
+
+known_region_tags: [us, eu, apac]       # optional vocabulary of legal region tags
+allowed_regions: [us, eu]               # optional; empty means "any region"
+denied_regions: [apac]                  # optional; denied wins over allowed
+
+no_downgrade:                           # optional; measured against the route's entry
+  capabilities: true
+  context_limit: true
+
+classes:                                # required, non-empty: named request fixtures
+  tools:
+    route: chat
+    required_capabilities: [chat, tools]
+
+scenarios:                              # optional named scenarios, same schema as
+  primary-down:                         # --scenario; omitted means one healthy run
+    nodes:
+      primary: {unavailable: true}
+
+matrix:                                 # optional; omit it to run every class × scenario
+  - class: tools
+    scenario: primary-down              # omitted means the healthy scenario, "none"
+```
+
+Field notes:
+
+- **`allowed_providers` / `denied_providers`** — checked against the selected node's
+  `provider`. An empty `allowed_providers` means "any". **Denied wins over allowed**: a
+  provider named in both lists is denied, so adding a name to `denied_providers` can
+  never be undone by an older `allowed_providers` line.
+- **`required_capabilities`** — capabilities the *selected* node must still have, on top
+  of whatever each class asks for. A scenario's `missing_capabilities` are subtracted
+  first, so a node that lost `tools` for this run cannot satisfy them.
+- **`max_fallback_hops`** — how many nodes a request may be passed over before it is
+  served. Selecting the entry node is `0` hops.
+- **`known_region_tags`** — the vocabulary of region tags this document uses. When set,
+  a tag on a node or in the policy that is not in it is an `invalid_schema` error, so a
+  typo fails loudly instead of quietly matching nothing.
+- **`allowed_regions` / `denied_regions`** — checked against the selected node's
+  `region`, with denied winning over allowed. When `allowed_regions` is set, a node with
+  no `region` at all is a violation: an untagged node fails closed.
+- **`no_downgrade`** — compares the selected node against the *route's entry node*, not
+  against the request. A fallback that serves the request while giving up a capability
+  or a context window the entry declared is exactly the quiet degradation this catches.
+- **`classes`** — named request fixtures, same schema as `--request`, including the ban
+  on prompt keys. At least one is required: an empty policy must never pass.
+- **`scenarios`** and **`matrix`** — the cases to run. With no `matrix`, every class runs
+  against every scenario; with no `scenarios`, every class runs against one healthy
+  scenario named `none`.
+
+Region tags are user-declared metadata, not a compliance certification. route-audit
+compares the tag written on a node against the vocabulary the policy declares. It
+performs no network geolocation, holds no provider region catalogue, and knows nothing
+about where a provider actually runs.
+
+### Violations
+
+| Violation | Meaning |
+| --- | --- |
+| `capability_downgrade` | The selected node lost a capability the route's entry node declared, under `no_downgrade.capabilities`. |
+| `capability_required` | The selected node is missing one of the policy's `required_capabilities`. |
+| `context_downgrade` | The selected node's `context_limit` is below the entry node's, under `no_downgrade.context_limit`. |
+| `max_hops_exceeded` | The walk passed over more nodes than `max_fallback_hops` allows. |
+| `provider_denied` | The selected node's `provider` is in `denied_providers`. |
+| `provider_not_allowed` | `allowed_providers` is set and the selected node's `provider` is not in it. |
+| `region_denied` | The selected node's `region` is in `denied_regions`. |
+| `region_not_allowed` | `allowed_regions` is set and the selected node's `region` is missing or not in it. |
+
+A node the walk *rejected* is never a violation — that is the graph working. A node the
+walk happily selected can be one: the backup that is up, healthy, and capable is exactly
+the fallback a policy exists to forbid.
+
+### The result
+
+A policy the graph satisfies prints one line and exits `0`:
+
+```bash
+$ route-audit audit examples/routes.yml --policy examples/policy-clean.yml
+ok
+```
+
+Otherwise the first line is the *smallest* violating path — the fewest nodes it took to
+cross a boundary, because that is the case worth fixing first — followed by every
+violation, sorted by `(code, class, scenario, path, message)`:
+
+```bash
+$ route-audit audit examples/audit-routes.yml --policy examples/policy.yml
+smallest eu-chat+two-down: chat.primary -> chat.backup -> chat.local (2 hops)
+capability_downgrade classes.eu-chat scenarios.two-down chat.local: capabilities lost against entry 'primary': json
+capability_downgrade classes.hops scenarios.two-down chat.local: capabilities lost against entry 'primary': json
+capability_downgrade classes.tools scenarios.two-down chat.local: capabilities lost against entry 'primary': json
+context_downgrade classes.eu-chat scenarios.two-down chat.local: context_limit 8000 is below entry 'primary' context_limit 128000
+context_downgrade classes.hops scenarios.two-down chat.local: context_limit 8000 is below entry 'primary' context_limit 128000
+context_downgrade classes.tools scenarios.two-down chat.local: context_limit 8000 is below entry 'primary' context_limit 128000
+max_hops_exceeded classes.eu-chat scenarios.two-down chat.local: fallback took 2 hops, more than max_fallback_hops 1
+max_hops_exceeded classes.hops scenarios.two-down chat.local: fallback took 2 hops, more than max_fallback_hops 1
+max_hops_exceeded classes.structured scenarios.two-down chat: fallback took 3 hops, more than max_fallback_hops 1
+max_hops_exceeded classes.tools scenarios.two-down chat.local: fallback took 2 hops, more than max_fallback_hops 1
+provider_denied classes.eu-chat scenarios.two-down chat.local: provider 'together' is denied
+provider_denied classes.hops scenarios.two-down chat.local: provider 'together' is denied
+provider_denied classes.tools scenarios.two-down chat.local: provider 'together' is denied
+region_denied classes.eu-chat scenarios.two-down chat.local: region 'apac' is denied
+region_denied classes.hops scenarios.two-down chat.local: region 'apac' is denied
+region_denied classes.tools scenarios.two-down chat.local: region 'apac' is denied
+```
+
+`--json` emits the same report as `{"ok", "exit_code", "smallest", "cases",
+"violations"}`, with one object per case in `cases` and the whole run's findings in
+`violations`.
+
+### The four stories
+
+[`examples/policy.yml`](examples/policy.yml), audited against
+[`examples/audit-routes.yml`](examples/audit-routes.yml), is four questions in one
+document — a chat route that degrades twice, each hop giving something up:
+
+- **Tool-capability preservation.** The `tools` class needs `chat` and `tools`. The last
+  node still has both, so the walk is happy and `simulate` reports a selection — but it
+  dropped `json`, which the entry node declared, so `no_downgrade.capabilities` reports
+  `capability_downgrade`.
+- **Structured-output preservation.** The `structured` class needs `json`. Once the two
+  `json` nodes are down, nothing left in the chain can serve it: the walk ends in
+  `exhaustion`. That unservable case is a coverage hole in the graph rather than a
+  boundary crossing, so it is not a violation on its own — only the distance the walk
+  travelled looking for a node is, under `max_fallback_hops`.
+- **Region boundary.** The last node is tagged `apac`, which the policy denies, so
+  falling that far reports `region_denied` even though the node is up and capable.
+- **Maximum hop.** `max_fallback_hops: 1` allows the primary to fail over once. The
+  two-outage scenario takes two hops, which reports `max_hops_exceeded`.
+
+### Audit exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | No policy violation. A case the walk could not serve is a coverage hole in the graph, not a governance failure, and does not fail the audit — `simulate` is where that shows up. |
+| `1` | At least one policy violation. |
+| `2` | Usage error, unreadable file, or a document that could not be parsed or did not match the schema (`parse_error`, `invalid_schema`). |
 
 ## Exit codes
 

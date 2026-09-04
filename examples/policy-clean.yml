@@ -1,0 +1,17 @@
+# A policy examples/routes.yml satisfies: one class, one healthy
+# scenario, and the boundaries that graph never crosses.
+allowed_providers: [openai, anthropic]
+required_capabilities: [chat]
+max_fallback_hops: 1
+
+no_downgrade:
+  capabilities: true
+  context_limit: true
+
+classes:
+  tools:
+    route: chat
+    required_capabilities: [chat, tools]
+
+scenarios:
+  healthy: {}
