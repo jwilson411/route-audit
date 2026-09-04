@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "route-audit",
+          "version": "0.1.0",
+          "informationUri": "https://github.com/jwilson411/route-audit",
+          "rules": [
+            {
+              "id": "cycle",
+              "name": "cycle"
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "cycle",
+          "level": "error",
+          "message": {
+            "text": "fallback edges form a cycle among nodes: backup, primary, spare"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/fixtures/cycle.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "chat",
+                  "fullyQualifiedName": "routes.chat",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

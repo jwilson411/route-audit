@@ -1,4 +1,4 @@
-"""`route-audit lint`, `route-audit simulate`, `route-audit audit`.
+"""`route-audit lint`, `simulate`, `audit`, and `report`.
 
 Reads local YAML files, prints stable output, exits with a documented
 code. It never opens a socket.
@@ -25,8 +25,16 @@ from route_audit.batch import (
 )
 from route_audit.diagnostics import Diagnostic, exit_code
 from route_audit.linter import format_json, format_text, lint_path
+from route_audit.model import RouteGraph
 from route_audit.parser import parse_path
-from route_audit.policy import check_region_vocabulary, load_policy_path
+from route_audit.policy import Policy, check_region_vocabulary, load_policy_path
+from route_audit.report import (
+    build_report,
+    format_report_json,
+    format_report_markdown,
+    report_exit_code,
+)
+from route_audit.sarif import format_audit_sarif, format_lint_sarif
 from route_audit.simulate import (
     Scenario,
     format_simulation_json,
@@ -77,6 +85,21 @@ route-audit performs no network geolocation. It validates architecture
 and does not send or proxy prompts.
 """
 
+REPORT_EPILOG = """\
+exit codes:
+  0  no policy violation (an untested edge or an unservable case is a
+     coverage hole, not a governance failure)
+  1  at least one policy violation
+  2  usage error, unreadable file, or a document that could not be
+     parsed or did not match the schema (parse_error, invalid_schema)
+
+The report folds the audited walks back onto the graph: one row per
+request class per scenario, then the fallback edges and nodes no case
+ever reached. It carries configuration metadata only - route ids, node
+ids, scenario names, diagnostic codes, and the file names it was given.
+It validates architecture and does not send or proxy prompts.
+"""
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -98,7 +121,7 @@ def build_parser() -> argparse.ArgumentParser:
     lint.add_argument("path", help="Path to the routing graph YAML file")
     lint.add_argument(
         "--format",
-        choices=("text", "json"),
+        choices=("text", "json", "sarif"),
         default="text",
         help="Output format (default: text, one finding per line)",
     )
@@ -166,7 +189,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     audit.add_argument(
         "--format",
-        choices=("text", "json"),
+        choices=("text", "json", "sarif"),
         default="text",
         help="Output format (default: text, the smallest violating path first)",
     )
@@ -177,13 +200,52 @@ def build_parser() -> argparse.ArgumentParser:
         help="Shorthand for --format json",
     )
     audit.set_defaults(handler=_run_audit)
+
+    report = subparsers.add_parser(
+        "report",
+        help="Build a coverage matrix of every request class against every scenario",
+        description=(
+            "Fold the audited walks back onto the graph: which class reached "
+            "which node, and which fallback edges and nodes no case ever "
+            "touched."
+        ),
+        epilog=REPORT_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    report.add_argument("path", help="Path to the routing graph YAML file")
+    report.add_argument(
+        "--policy",
+        required=True,
+        help="Path to the policy document: the classes and scenarios to cover",
+    )
+    report.add_argument(
+        "--format",
+        choices=("markdown", "json"),
+        default="markdown",
+        help="Output format (default: markdown, a matrix table plus coverage holes)",
+    )
+    report.add_argument(
+        "--json",
+        dest="json_flag",
+        action="store_true",
+        help="Shorthand for --format json",
+    )
+    report.set_defaults(handler=_run_report)
     return parser
+
+
+def _output_format(args: argparse.Namespace) -> str:
+    """`--json` is shorthand, so it wins over whatever `--format` says."""
+    return "json" if args.json_flag else str(args.format)
 
 
 def _run_lint(args: argparse.Namespace) -> int:
     diagnostics = lint_path(args.path)
-    if args.json_flag or args.format == "json":
+    fmt = _output_format(args)
+    if fmt == "json":
         print(format_json(diagnostics, path=str(args.path)))
+    elif fmt == "sarif":
+        print(format_lint_sarif(diagnostics, path=str(args.path)))
     else:
         sys.stdout.write(format_text(diagnostics))
     return exit_code(diagnostics)
@@ -192,16 +254,17 @@ def _run_lint(args: argparse.Namespace) -> int:
 def _run_simulate(args: argparse.Namespace) -> int:
     if args.scenario and not args.request:
         args.subparser.error("--scenario requires --request")
-    json_mode = args.json_flag or args.format == "json"
+    fmt = _output_format(args)
+    json_mode = fmt == "json"
 
     graph, diagnostics = parse_path(args.path)
     if graph is None:
-        return _report(diagnostics, path=str(args.path), json_mode=json_mode)
+        return _report(diagnostics, path=str(args.path), fmt=fmt)
 
     if args.batch:
         plan, diagnostics = load_batch_path(args.batch)
         if plan is None:
-            return _report(diagnostics, path=str(args.batch), json_mode=json_mode)
+            return _report(diagnostics, path=str(args.batch), fmt=fmt)
         report = run_batch(graph, plan)
         if json_mode:
             print(format_batch_json(report, graph=str(args.path), batch=str(args.batch)))
@@ -220,7 +283,7 @@ def _run_simulate(args: argparse.Namespace) -> int:
             failing = str(args.scenario)
         diagnostics = diagnostics + problems
     if request is None or diagnostics:
-        return _report(diagnostics, path=failing, json_mode=json_mode)
+        return _report(diagnostics, path=failing, fmt=fmt)
 
     result = simulate(graph, request, scenario)
     if json_mode:
@@ -238,36 +301,67 @@ def _run_simulate(args: argparse.Namespace) -> int:
 
 
 def _run_audit(args: argparse.Namespace) -> int:
-    json_mode = args.json_flag or args.format == "json"
+    fmt = _output_format(args)
+    loaded = _load_audit(args, fmt)
+    if isinstance(loaded, int):
+        return loaded
 
-    graph, diagnostics = parse_path(args.path)
-    if graph is None:
-        return _report(diagnostics, path=str(args.path), json_mode=json_mode)
-
-    policy, diagnostics = load_policy_path(args.policy)
-    if policy is None:
-        return _report(diagnostics, path=str(args.policy), json_mode=json_mode)
-
-    # Region tags on the graph are only checked against a declared
-    # vocabulary, so this is the audit's business and never the linter's.
-    diagnostics = check_region_vocabulary(graph, policy)
-    if diagnostics:
-        return _report(diagnostics, path=str(args.path), json_mode=json_mode)
-
-    report = run_audit(graph, policy)
-    if json_mode:
+    report = run_audit(*loaded)
+    if fmt == "json":
         print(format_audit_json(report, graph=str(args.path), policy=str(args.policy)))
+    elif fmt == "sarif":
+        print(format_audit_sarif(report, graph=str(args.path), policy=str(args.policy)))
     else:
         sys.stdout.write(format_audit_text(report))
     return audit_exit_code(report)
 
 
-def _report(diagnostics: list[Diagnostic], *, path: str, json_mode: bool) -> int:
+def _run_report(args: argparse.Namespace) -> int:
+    fmt = _output_format(args)
+    loaded = _load_audit(args, fmt)
+    if isinstance(loaded, int):
+        return loaded
+
+    graph, policy = loaded
+    audit = run_audit(graph, policy)
+    report = build_report(
+        graph, audit, graph_path=str(args.path), policy_path=str(args.policy)
+    )
+    if fmt == "json":
+        print(format_report_json(report))
+    else:
+        sys.stdout.write(format_report_markdown(report))
+    return report_exit_code(audit)
+
+
+def _load_audit(
+    args: argparse.Namespace, fmt: str
+) -> tuple[RouteGraph, Policy] | int:
+    """The graph and policy both commands need, or the exit code to return."""
+    graph, diagnostics = parse_path(args.path)
+    if graph is None:
+        return _report(diagnostics, path=str(args.path), fmt=fmt)
+
+    policy, diagnostics = load_policy_path(args.policy)
+    if policy is None:
+        return _report(diagnostics, path=str(args.policy), fmt=fmt)
+
+    # Region tags on the graph are only checked against a declared
+    # vocabulary, so this is the audit's business and never the linter's.
+    diagnostics = check_region_vocabulary(graph, policy)
+    if diagnostics:
+        return _report(diagnostics, path=str(args.path), fmt=fmt)
+    return graph, policy
+
+
+def _report(diagnostics: list[Diagnostic], *, path: str, fmt: str) -> int:
     """Render loader diagnostics the way `lint` renders findings."""
     if not diagnostics:  # a document that failed to load always says why
         return 2
-    if json_mode:
+    if fmt == "json":
         print(format_json(diagnostics, path=path))
+    elif fmt == "sarif":
+        print(format_lint_sarif(diagnostics, path=path))
     else:
         sys.stdout.write(format_text(diagnostics))
     return exit_code(diagnostics)

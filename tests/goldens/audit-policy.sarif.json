@@ -1,0 +1,579 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "route-audit",
+          "version": "0.1.0",
+          "informationUri": "https://github.com/jwilson411/route-audit",
+          "rules": [
+            {
+              "id": "capability_downgrade",
+              "name": "capability_downgrade"
+            },
+            {
+              "id": "context_downgrade",
+              "name": "context_downgrade"
+            },
+            {
+              "id": "max_hops_exceeded",
+              "name": "max_hops_exceeded"
+            },
+            {
+              "id": "provider_denied",
+              "name": "provider_denied"
+            },
+            {
+              "id": "region_denied",
+              "name": "region_denied"
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "capability_downgrade",
+          "level": "error",
+          "message": {
+            "text": "capabilities lost against entry 'primary': json"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/audit-routes.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "local",
+                  "fullyQualifiedName": "routes.chat.nodes.local",
+                  "kind": "member"
+                },
+                {
+                  "name": "eu-chat",
+                  "fullyQualifiedName": "classes.eu-chat",
+                  "kind": "member"
+                },
+                {
+                  "name": "two-down",
+                  "fullyQualifiedName": "scenarios.two-down",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "capability_downgrade",
+          "level": "error",
+          "message": {
+            "text": "capabilities lost against entry 'primary': json"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/audit-routes.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "local",
+                  "fullyQualifiedName": "routes.chat.nodes.local",
+                  "kind": "member"
+                },
+                {
+                  "name": "hops",
+                  "fullyQualifiedName": "classes.hops",
+                  "kind": "member"
+                },
+                {
+                  "name": "two-down",
+                  "fullyQualifiedName": "scenarios.two-down",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "capability_downgrade",
+          "level": "error",
+          "message": {
+            "text": "capabilities lost against entry 'primary': json"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/audit-routes.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "local",
+                  "fullyQualifiedName": "routes.chat.nodes.local",
+                  "kind": "member"
+                },
+                {
+                  "name": "tools",
+                  "fullyQualifiedName": "classes.tools",
+                  "kind": "member"
+                },
+                {
+                  "name": "two-down",
+                  "fullyQualifiedName": "scenarios.two-down",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "context_downgrade",
+          "level": "error",
+          "message": {
+            "text": "context_limit 8000 is below entry 'primary' context_limit 128000"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/audit-routes.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "local",
+                  "fullyQualifiedName": "routes.chat.nodes.local",
+                  "kind": "member"
+                },
+                {
+                  "name": "eu-chat",
+                  "fullyQualifiedName": "classes.eu-chat",
+                  "kind": "member"
+                },
+                {
+                  "name": "two-down",
+                  "fullyQualifiedName": "scenarios.two-down",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "context_downgrade",
+          "level": "error",
+          "message": {
+            "text": "context_limit 8000 is below entry 'primary' context_limit 128000"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/audit-routes.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "local",
+                  "fullyQualifiedName": "routes.chat.nodes.local",
+                  "kind": "member"
+                },
+                {
+                  "name": "hops",
+                  "fullyQualifiedName": "classes.hops",
+                  "kind": "member"
+                },
+                {
+                  "name": "two-down",
+                  "fullyQualifiedName": "scenarios.two-down",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "context_downgrade",
+          "level": "error",
+          "message": {
+            "text": "context_limit 8000 is below entry 'primary' context_limit 128000"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/audit-routes.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "local",
+                  "fullyQualifiedName": "routes.chat.nodes.local",
+                  "kind": "member"
+                },
+                {
+                  "name": "tools",
+                  "fullyQualifiedName": "classes.tools",
+                  "kind": "member"
+                },
+                {
+                  "name": "two-down",
+                  "fullyQualifiedName": "scenarios.two-down",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "max_hops_exceeded",
+          "level": "error",
+          "message": {
+            "text": "fallback took 3 hops, more than max_fallback_hops 1"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/audit-routes.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "chat",
+                  "fullyQualifiedName": "routes.chat",
+                  "kind": "member"
+                },
+                {
+                  "name": "structured",
+                  "fullyQualifiedName": "classes.structured",
+                  "kind": "member"
+                },
+                {
+                  "name": "two-down",
+                  "fullyQualifiedName": "scenarios.two-down",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "max_hops_exceeded",
+          "level": "error",
+          "message": {
+            "text": "fallback took 2 hops, more than max_fallback_hops 1"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/audit-routes.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "local",
+                  "fullyQualifiedName": "routes.chat.nodes.local",
+                  "kind": "member"
+                },
+                {
+                  "name": "eu-chat",
+                  "fullyQualifiedName": "classes.eu-chat",
+                  "kind": "member"
+                },
+                {
+                  "name": "two-down",
+                  "fullyQualifiedName": "scenarios.two-down",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "max_hops_exceeded",
+          "level": "error",
+          "message": {
+            "text": "fallback took 2 hops, more than max_fallback_hops 1"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/audit-routes.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "local",
+                  "fullyQualifiedName": "routes.chat.nodes.local",
+                  "kind": "member"
+                },
+                {
+                  "name": "hops",
+                  "fullyQualifiedName": "classes.hops",
+                  "kind": "member"
+                },
+                {
+                  "name": "two-down",
+                  "fullyQualifiedName": "scenarios.two-down",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "max_hops_exceeded",
+          "level": "error",
+          "message": {
+            "text": "fallback took 2 hops, more than max_fallback_hops 1"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/audit-routes.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "local",
+                  "fullyQualifiedName": "routes.chat.nodes.local",
+                  "kind": "member"
+                },
+                {
+                  "name": "tools",
+                  "fullyQualifiedName": "classes.tools",
+                  "kind": "member"
+                },
+                {
+                  "name": "two-down",
+                  "fullyQualifiedName": "scenarios.two-down",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "provider_denied",
+          "level": "error",
+          "message": {
+            "text": "provider 'together' is denied"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/audit-routes.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "local",
+                  "fullyQualifiedName": "routes.chat.nodes.local",
+                  "kind": "member"
+                },
+                {
+                  "name": "eu-chat",
+                  "fullyQualifiedName": "classes.eu-chat",
+                  "kind": "member"
+                },
+                {
+                  "name": "two-down",
+                  "fullyQualifiedName": "scenarios.two-down",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "provider_denied",
+          "level": "error",
+          "message": {
+            "text": "provider 'together' is denied"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/audit-routes.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "local",
+                  "fullyQualifiedName": "routes.chat.nodes.local",
+                  "kind": "member"
+                },
+                {
+                  "name": "hops",
+                  "fullyQualifiedName": "classes.hops",
+                  "kind": "member"
+                },
+                {
+                  "name": "two-down",
+                  "fullyQualifiedName": "scenarios.two-down",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "provider_denied",
+          "level": "error",
+          "message": {
+            "text": "provider 'together' is denied"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/audit-routes.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "local",
+                  "fullyQualifiedName": "routes.chat.nodes.local",
+                  "kind": "member"
+                },
+                {
+                  "name": "tools",
+                  "fullyQualifiedName": "classes.tools",
+                  "kind": "member"
+                },
+                {
+                  "name": "two-down",
+                  "fullyQualifiedName": "scenarios.two-down",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "region_denied",
+          "level": "error",
+          "message": {
+            "text": "region 'apac' is denied"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/audit-routes.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "local",
+                  "fullyQualifiedName": "routes.chat.nodes.local",
+                  "kind": "member"
+                },
+                {
+                  "name": "eu-chat",
+                  "fullyQualifiedName": "classes.eu-chat",
+                  "kind": "member"
+                },
+                {
+                  "name": "two-down",
+                  "fullyQualifiedName": "scenarios.two-down",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "region_denied",
+          "level": "error",
+          "message": {
+            "text": "region 'apac' is denied"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/audit-routes.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "local",
+                  "fullyQualifiedName": "routes.chat.nodes.local",
+                  "kind": "member"
+                },
+                {
+                  "name": "hops",
+                  "fullyQualifiedName": "classes.hops",
+                  "kind": "member"
+                },
+                {
+                  "name": "two-down",
+                  "fullyQualifiedName": "scenarios.two-down",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ruleId": "region_denied",
+          "level": "error",
+          "message": {
+            "text": "region 'apac' is denied"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "examples/audit-routes.yml"
+                }
+              },
+              "logicalLocations": [
+                {
+                  "name": "local",
+                  "fullyQualifiedName": "routes.chat.nodes.local",
+                  "kind": "member"
+                },
+                {
+                  "name": "tools",
+                  "fullyQualifiedName": "classes.tools",
+                  "kind": "member"
+                },
+                {
+                  "name": "two-down",
+                  "fullyQualifiedName": "scenarios.two-down",
+                  "kind": "member"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "artifacts": [
+        {
+          "location": {
+            "uri": "examples/audit-routes.yml"
+          }
+        },
+        {
+          "location": {
+            "uri": "examples/policy.yml"
+          }
+        }
+      ]
+    }
+  ]
+}

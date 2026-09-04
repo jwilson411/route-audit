@@ -1,0 +1,39 @@
+{
+  "graph": "examples/routes.yml",
+  "policy": "examples/policy-clean.yml",
+  "ok": true,
+  "exit_code": 0,
+  "matrix": [
+    {
+      "class": "tools",
+      "scenario": "healthy",
+      "route": "chat",
+      "ok": true,
+      "selected": "primary",
+      "failure": null,
+      "hops": 0,
+      "violations": [],
+      "attempted": []
+    }
+  ],
+  "untested_edges": [
+    {
+      "route": "chat",
+      "from": "primary",
+      "to": "backup"
+    }
+  ],
+  "untested_nodes": [
+    {
+      "route": "chat",
+      "node": "backup"
+    },
+    {
+      "route": "embed",
+      "node": "only"
+    }
+  ],
+  "routes_without_selection": [
+    "embed"
+  ]
+}

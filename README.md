@@ -448,6 +448,143 @@ document — a chat route that degrades twice, each hop giving something up:
 | `1` | At least one policy violation. |
 | `2` | Usage error, unreadable file, or a document that could not be parsed or did not match the schema (`parse_error`, `invalid_schema`). |
 
+## Coverage report
+
+`audit` answers "was any crossing forbidden". The question right after it is which
+parts of the graph those cases ever touched — a policy that passes because half its
+fallback edges were never walked has not really passed. `report` folds the audited
+walks back onto the graph and prints the matrix.
+
+```bash
+route-audit report routes.yml --policy policy.yml
+route-audit report routes.yml --policy policy.yml --format json
+```
+
+Nothing is re-simulated: the report reads the same run `audit` produced, so the two
+commands always agree.
+
+```bash
+$ route-audit report examples/routes.yml --policy examples/policy-clean.yml
+# Coverage matrix
+
+graph: examples/routes.yml
+policy: examples/policy-clean.yml
+
+| class | scenario | route | ok | selected | failure | hops | violations | attempted |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| tools | healthy | chat | yes | primary | - | 0 | - | - |
+
+## Untested edges
+
+- chat: primary -> backup
+
+## Untested nodes
+
+- chat.backup
+- embed.only
+
+## Routes without selection
+
+- embed
+```
+
+One row per request class per scenario, in these columns:
+
+| Column | Meaning |
+| --- | --- |
+| `class` | The request class the policy declares. |
+| `scenario` | The scenario it ran under. The healthy default is named `none`. |
+| `route` | The route the class resolved to, empty when the name resolved to nothing. |
+| `ok` | Whether the policy allowed this case, selection or not. |
+| `selected` | The node that served it, or nothing when the walk ended in failure. |
+| `failure` | The terminal failure code, when there was one. |
+| `hops` | Nodes passed over before the outcome. Selecting the entry is `0`. |
+| `violations` | The violation codes this case raised, sorted. |
+| `attempted` | The nodes it walked, in order. |
+
+Then the three coverage holes, each its own section and each still printed — as a
+single `none` line — when it is empty, so the output stays diffable:
+
+- **`untested_edges`** — fallback edges no case stepped over, sorted by
+  `(route, from, to)`. This is the one worth reading first: an edge nothing exercised
+  is a fallback nobody has evidence about.
+- **`untested_nodes`** — nodes no case attempted and no case selected, sorted by
+  `(route, node)`.
+- **`routes_without_selection`** — routes that never served anything, including routes
+  the matrix never named at all.
+
+Under `--format json` the same report is one object with `graph`, `policy`, `ok`,
+`exit_code`, `matrix`, `untested_edges`, `untested_nodes`, and
+`routes_without_selection`.
+
+A report carries configuration metadata only: route ids, node ids, providers as
+written, region tags, capabilities, hops, scenario names, and diagnostic codes. **It
+never contains prompts, message content, credentials, or the contents of the files it
+was given** — only their names, as you wrote them on the command line.
+
+Report exit codes are the audit's: `0` with no policy violation, `1` with at least
+one, `2` for a document that could not be read or understood. An untested edge is a
+coverage hole, not a governance failure, so it never fails the build on its own.
+
+## SARIF
+
+`lint` and `audit` both speak [SARIF 2.1.0](https://json.schemastore.org/sarif-2.1.0.json),
+so route-audit drops into a pipeline that already collects code-scanning results.
+
+```bash
+route-audit lint routes.yml --format sarif
+route-audit audit routes.yml --policy policy.yml --format sarif
+```
+
+Nothing new is decided in SARIF mode. Rule ids are the existing codes — `cycle`,
+`dangling_alias`, `provider_denied`, and the rest of the tables above — and the message
+is the same text the plain renderer prints. Every finding is `error`; route-audit has
+no warning tier.
+
+route-audit has no line numbers to give, because a finding locates itself by YAML path
+rather than by offset. So each result carries the input file as its physical location
+and the path as a logical one: `routes.chat`, `aliases.fast`,
+`routes.chat.nodes.local`. An audit result adds the class and the scenario that reached
+the node, as `classes.tools` and `scenarios.two-down`.
+
+Results are sorted by `(ruleId, fullyQualifiedName, message)`, so the document is
+byte-stable for the same inputs. Exit codes are unchanged. Like every other format, a
+SARIF document holds configuration metadata only — no file bodies, no environment, no
+credentials, no prompt text.
+
+## GitHub Action
+
+A composite action lives at [`.github/actions/route-audit`](.github/actions/route-audit/action.yml).
+It installs the package from the checked-out workspace and runs `lint`, then `audit`
+when a policy is given, then writes the coverage matrix to the job summary.
+
+```yaml
+- uses: actions/checkout@v4
+- uses: ./.github/actions/route-audit
+  with:
+    routes: examples/routes.yml
+    policy: examples/policy-clean.yml   # optional
+    python-version: "3.12"              # optional
+```
+
+| Input | Meaning |
+| --- | --- |
+| `routes` | Required. Path to the routing graph YAML file. |
+| `policy` | Optional. When set, `audit` runs after `lint` and the matrix is summarised. |
+| `python-version` | Optional, default `3.12`. |
+
+The action is **offline**: after the caller's checkout and `setup-python`, it opens no
+sockets of its own, contacts no provider, and holds no credentials. It prints command
+status, never file contents. The matrix goes to `$GITHUB_STEP_SUMMARY` — the Actions
+tab of the run — which is not a hosted dashboard and not a PR comment bot.
+
+To use it from another repository, check this one out alongside yours (or `pip install`
+it from source) and point the `uses:` at that path. route-audit is not published to
+PyPI.
+
+This repository dogfoods the action in its own [CI](.github/workflows/ci.yml), against
+the good examples and against known-bad fixtures whose exit codes are asserted.
+
 ## Exit codes
 
 | Code | Meaning |
